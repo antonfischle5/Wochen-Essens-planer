@@ -153,8 +153,9 @@ p { color: var(--muted); line-height: 1.45; }
 .shopping-summary { margin-bottom: 15px; }
 .progress-ring {
   min-width: 62px; height: 62px; display: grid; place-items: center;
-  border: 5px solid rgba(255,255,255,.25); border-top-color: white;
-  border-radius: 50%; font-size: 12px; font-weight: 900;
+  border: 0;
+  border-radius: 0;
+  font-size: 12px; font-weight: 900;
 }
 .add-shopping { display: grid; grid-template-columns: 1fr 80px 48px; gap: 7px; }
 input {
