@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#111827">
+  <title>Wochen-Essensplaner</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">Dein smarter Essensplan</p>
+        <h1>Wochen-Essensplaner</h1>
+      </div>
+      <button class="icon-btn" id="shuffleTop" aria-label="Woche neu mischen">↻</button>
+    </header>
+
+    <main>
+      <section class="tab-panel active" id="panel-plan" data-panel="plan">
+        <div class="week-hero">
+          <div>
+            <span class="hero-label">AKTUELLE WOCHE</span>
+            <h2 id="weekTitle">Deine Woche</h2>
+            <p id="weekRange">Montag – Sonntag</p>
+          </div>
+          <span class="hero-icon">🍽️</span>
+        </div>
+
+        <div class="section-heading">
+          <div>
+            <h2>Wochenplan</h2>
+            <p>Deine Gerichte werden passend zu deinen Regeln verteilt.</p>
+          </div>
+          <button class="primary-btn compact" id="shufflePlan">Neu mischen</button>
+        </div>
+
+        <div id="planList" class="stack"></div>
+      </section>
+
+      <section class="tab-panel" id="panel-dishes" data-panel="dishes">
+        <div class="section-heading page-heading">
+          <div>
+            <span class="hero-label">DEINE SAMMLUNG</span>
+            <h2>Gerichte</h2>
+            <p>Lege Gerichte, Zutaten und Regeln fest.</p>
+          </div>
+          <button class="primary-btn" id="addDishBtn">＋ Gericht</button>
+        </div>
+        <div id="dishList" class="stack"></div>
+      </section>
+
+      <section class="tab-panel" id="panel-shopping" data-panel="shopping">
+        <div class="shopping-summary">
+          <div>
+            <span class="hero-label">DIESE WOCHE</span>
+            <h2>Einkaufsliste</h2>
+            <p id="shoppingProgress">0 von 0 erledigt</p>
+          </div>
+          <div class="progress-ring" id="progressRing">0%</div>
+        </div>
+
+        <form class="add-shopping" id="shoppingForm">
+          <input id="shoppingName" type="text" placeholder="Eigenen Artikel hinzufügen…" maxlength="80" required>
+          <input id="shoppingQty" class="qty-input" type="text" placeholder="Menge" maxlength="20">
+          <button class="primary-btn" type="submit">＋</button>
+        </form>
+
+        <div class="section-heading small-heading">
+          <div>
+            <h2>Benötigte Zutaten</h2>
+            <p>Automatisch aus deinem Wochenplan.</p>
+          </div>
+        </div>
+        <div id="autoShoppingList" class="shopping-list"></div>
+
+        <div class="section-heading small-heading manual-heading">
+          <div>
+            <h2>Meine Artikel</h2>
+            <p>Eigene Sachen kannst du hier ergänzen.</p>
+          </div>
+        </div>
+        <div id="manualShoppingList" class="shopping-list"></div>
+      </section>
+    </main>
+
+    <nav class="bottom-nav" aria-label="Hauptnavigation">
+      <button class="nav-item active" data-tab="plan"><span>🗓️</span><strong>Plan</strong></button>
+      <button class="nav-item" data-tab="dishes"><span>🍝</span><strong>Gerichte</strong></button>
+      <button class="nav-item" data-tab="shopping"><span>🛒</span><strong>Einkauf</strong></button>
+    </nav>
+  </div>
+
+  <dialog id="dishDialog" class="dish-dialog">
+    <form method="dialog" id="dishForm" class="dialog-card">
+      <div class="dialog-header">
+        <div>
+          <span class="hero-label">GERICHT BEARBEITEN</span>
+          <h2 id="dialogTitle">Neues Gericht</h2>
+        </div>
+        <button type="button" class="icon-btn" id="closeDialog" aria-label="Schließen">×</button>
+      </div>
+
+      <label class="field-label">Name
+        <input id="dishName" type="text" maxlength="60" placeholder="z. B. Spaghetti Bolognese" required>
+      </label>
+
+      <div class="field-block">
+        <div class="field-label-row">
+          <span class="field-label">Zutaten</span>
+          <button type="button" class="text-btn" id="addIngredientBtn">＋ Zutat</button>
+        </div>
+        <div id="ingredientRows" class="ingredient-rows"></div>
+      </div>
+
+      <div class="field-block">
+        <div class="field-label-row">
+          <span class="field-label">Wann darf es vorkommen?</span>
+          <button type="button" class="text-btn" id="allDaysBtn">Jeden Tag</button>
+        </div>
+        <div class="day-grid" id="dayGrid"></div>
+        <p class="helper-text">Mehrere Tage sind möglich. Beispiel: Nur Samstag und Sonntag.</p>
+      </div>
+
+      <div class="dialog-actions">
+        <button type="button" class="secondary-btn" id="cancelDish">Abbrechen</button>
+        <button type="submit" class="primary-btn">Speichern</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script src="script.js"></script>
+</body>
+</html>
