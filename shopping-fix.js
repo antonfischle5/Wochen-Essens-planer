@@ -1,4 +1,4 @@
-// Erweiterung: Auch automatisch erzeugte Zutaten können abgehakt werden.
+// Erweiterung: Automatische Zutaten abhaken + Fortschrittsanzeige korrekt aktualisieren.
 const AUTO_CHECK_STORAGE = 'wochen-essensplaner:auto-shopping-checked:v1';
 let autoChecked = load(AUTO_CHECK_STORAGE, {}) || {};
 
@@ -30,6 +30,21 @@ function shoppingHTML(item, manual) {
 const originalRenderShopping = renderShopping;
 renderShopping = function () {
   originalRenderShopping();
+
+  // Fortschritt nach dem ursprünglichen Rendern mit den automatisch
+  // erzeugten Zutaten neu berechnen.
+  const autoItems = aggregateShopping();
+  const week = getWeekKey();
+  const manual = Array.isArray(manualItems[week]) ? manualItems[week] : [];
+  const autoDone = autoItems.filter(item => !!autoChecked[autoShoppingKey(item)]).length;
+  const manualDone = manual.filter(item => !!item.checked).length;
+  const total = autoItems.length + manual.length;
+  const done = autoDone + manualDone;
+  const percent = total ? Math.round((done / total) * 100) : 0;
+
+  $('shoppingProgress').textContent = `${done} von ${total} Artikeln erledigt`;
+  $('progressRing').textContent = `${percent}%`;
+
   document.querySelectorAll('[data-auto-shopping-check]').forEach(input => {
     input.addEventListener('change', () => toggleAutoShopping(input.dataset.autoShoppingCheck));
   });
