@@ -11,7 +11,9 @@ const DAYS = [
 const STORAGE = {
   dishes: 'wochen-essensplaner:dishes:v1',
   plans: 'wochen-essensplaner:plans:v1',
-  manual: 'wochen-essensplaner:manual-shopping:v1'
+  manual: 'wochen-essensplaner:manual-shopping:v1',
+  autoChecked: 'wochen-essensplaner:auto-shopping-checked:v1',
+  hintDismissed: 'wochen-essensplaner:install-hint-dismissed:v1'
 };
 
 const DEFAULT_DISHES = [
@@ -35,16 +37,6 @@ const DEFAULT_DISHES = [
   ] }
 ];
 
-let dishes = load(STORAGE.dishes, null);
-if (!Array.isArray(dishes) || dishes.length === 0) {
-  dishes = DEFAULT_DISHES.map(d => ({ ...d, id: uid() }));
-  save(STORAGE.dishes, dishes);
-}
-
-let plans = load(STORAGE.plans, {}) || {};
-let manualItems = load(STORAGE.manual, {}) || {};
-let editingDishId = null;
-
 const $ = id => document.getElementById(id);
 
 function uid() {
@@ -55,9 +47,21 @@ function load(key, fallback) {
   try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch { return fallback; }
 }
 
+// Schlägt der Speicher fehl (z. B. voll oder privater Modus), läuft die App trotzdem weiter.
 function save(key, value) {
-  localStorage.setItem(key, JSON.stringify(value));
+  try { localStorage.setItem(key, JSON.stringify(value)); } catch { /* ignorieren */ }
 }
+
+let dishes = load(STORAGE.dishes, null);
+if (!Array.isArray(dishes) || dishes.length === 0) {
+  dishes = DEFAULT_DISHES.map(d => ({ ...d, id: uid() }));
+  save(STORAGE.dishes, dishes);
+}
+
+let plans = load(STORAGE.plans, {}) || {};
+let manualItems = load(STORAGE.manual, {}) || {};
+let autoChecked = load(STORAGE.autoChecked, {}) || {};
+let editingDishId = null;
 
 function getWeekKey(date = new Date()) {
   const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
@@ -85,6 +89,10 @@ function getWeekRange() {
   const sunday = new Date(monday);
   sunday.setDate(monday.getDate() + 6);
   return `${formatDate(monday)} – ${formatDate(sunday)}`;
+}
+
+function todayIndex() {
+  return (new Date().getDay() + 6) % 7; // Montag = 0
 }
 
 function canUseDish(dish, dayKey) {
@@ -138,12 +146,14 @@ function renderPlan() {
   $('weekTitle').textContent = `Woche ${getWeekKey().split('-W')[1]}`;
   $('weekRange').textContent = getWeekRange();
   const plan = ensureCurrentPlan();
+  const today = todayIndex();
   $('planList').innerHTML = DAYS.map((day, index) => {
     const dish = dishForId(plan[day.key]);
-    return `<article class="day-card">
+    const isToday = index === today;
+    return `<article class="day-card${isToday ? ' today' : ''}">
       <div class="day-number">${day.short}</div>
       <div>
-        <div class="day-name">${day.label}</div>
+        <div class="day-name">${day.label}${isToday ? ' · Heute' : ''}</div>
         <h3>${dish ? escapeHTML(dish.name) : '<span class="empty-dish">Kein passendes Gericht</span>'}</h3>
         <p>${dish ? escapeHTML(ingredientSummary(dish)) : 'Füge ein Gericht für diesen Tag hinzu.'}</p>
       </div>
@@ -167,17 +177,14 @@ function renderDishes() {
       <div class="dish-card-top">
         <div><h3>${escapeHTML(dish.name)}</h3><p>${dish.ingredients.length} ${dish.ingredients.length === 1 ? 'Zutat' : 'Zutaten'}</p></div>
         <div class="dish-actions">
-          <button class="small-icon" data-edit="${dish.id}" aria-label="Bearbeiten">✎</button>
-          <button class="small-icon delete" data-delete="${dish.id}" aria-label="Löschen">⌫</button>
+          <button class="small-icon" data-edit="${escapeAttr(dish.id)}" aria-label="${escapeAttr(dish.name)} bearbeiten">✎</button>
+          <button class="small-icon delete" data-delete="${escapeAttr(dish.id)}" aria-label="${escapeAttr(dish.name)} löschen">⌫</button>
         </div>
       </div>
       <div class="tags"><span class="tag">${escapeHTML(daysText || 'Kein Tag')}</span></div>
       <p class="ingredient-preview">${escapeHTML(ingredientSummary(dish))}</p>
     </article>`;
   }).join('');
-
-  list.querySelectorAll('[data-edit]').forEach(btn => btn.addEventListener('click', () => openDishDialog(btn.dataset.edit)));
-  list.querySelectorAll('[data-delete]').forEach(btn => btn.addEventListener('click', () => deleteDish(btn.dataset.delete)));
 }
 
 function aggregateShopping() {
@@ -207,6 +214,10 @@ function formatQuantity(value) {
   return Number.isInteger(value) ? String(value) : value.toFixed(2).replace(/0+$/, '').replace(/\.$/, '').replace('.', ',');
 }
 
+function autoShoppingKey(item) {
+  return `${getWeekKey()}::${item.id}`;
+}
+
 function renderShopping() {
   const autoItems = aggregateShopping();
   const week = getWeekKey();
@@ -215,27 +226,40 @@ function renderShopping() {
   $('autoShoppingList').innerHTML = autoItems.length ? autoItems.map(item => shoppingHTML(item, false)).join('') : emptyShopping('Keine Zutaten gefunden.');
   $('manualShoppingList').innerHTML = manual.length ? manual.map(item => shoppingHTML(item, true)).join('') : emptyShopping('Hier kannst du eigene Artikel hinzufügen.');
 
-  const all = [...manual];
-  const done = all.filter(i => i.checked).length;
-  const total = autoItems.length + all.length;
-  $('shoppingProgress').textContent = `${done} von ${total} eigenen Artikeln erledigt`;
+  const autoDone = autoItems.filter(item => !!autoChecked[autoShoppingKey(item)]).length;
+  const manualDone = manual.filter(item => !!item.checked).length;
+  const total = autoItems.length + manual.length;
+  const done = autoDone + manualDone;
   const percent = total ? Math.round((done / total) * 100) : 0;
-  $('progressRing').textContent = `${percent}%`;
 
-  document.querySelectorAll('[data-shopping-check]').forEach(input => input.addEventListener('change', () => toggleManual(input.dataset.shoppingCheck)));
-  document.querySelectorAll('[data-shopping-delete]').forEach(btn => btn.addEventListener('click', () => deleteManual(btn.dataset.shoppingDelete)));
+  $('shoppingProgress').textContent = `${done} von ${total} Artikeln erledigt`;
+  $('progressRing').textContent = `${percent}%`;
+  $('progressRing').style.setProperty('--p', percent);
 }
 
 function shoppingHTML(item, manual) {
-  const checked = manual && item.checked;
+  const checked = manual ? !!item.checked : !!autoChecked[autoShoppingKey(item)];
+  const dataAttr = manual ? `data-shopping-check="${escapeAttr(item.id)}"` : `data-auto-shopping-check="${escapeAttr(item.id)}"`;
   return `<div class="shopping-item ${checked ? 'checked' : ''}">
-    ${manual ? `<input class="shopping-check" type="checkbox" ${checked ? 'checked' : ''} data-shopping-check="${item.id}" aria-label="${escapeHTML(item.name)} erledigt">` : '<span class="shopping-check" aria-hidden="true"></span>'}
-    <div class="shopping-content"><span class="shopping-name">${escapeHTML(item.name)}</span><span class="shopping-qty">${escapeHTML([item.quantity, item.unit].filter(Boolean).join(' ')) || 'Menge nach Bedarf'}</span></div>
-    ${manual ? `<button class="delete-shopping" data-shopping-delete="${item.id}" aria-label="Artikel löschen">×</button>` : ''}
+    <label class="shopping-main">
+      <input class="shopping-check" type="checkbox" ${checked ? 'checked' : ''} ${dataAttr}>
+      <span class="shopping-content">
+        <span class="shopping-name">${escapeHTML(item.name)}</span>
+        <span class="shopping-qty">${escapeHTML([item.quantity, item.unit].filter(Boolean).join(' ')) || 'Menge nach Bedarf'}</span>
+      </span>
+    </label>
+    ${manual ? `<button class="delete-shopping" data-shopping-delete="${escapeAttr(item.id)}" aria-label="${escapeAttr(item.name)} löschen">×</button>` : ''}
   </div>`;
 }
 
 function emptyShopping(text) { return `<div class="empty-state"><p>${text}</p></div>`; }
+
+function toggleAuto(id) {
+  const key = `${getWeekKey()}::${id}`;
+  autoChecked[key] = !autoChecked[key];
+  save(STORAGE.autoChecked, autoChecked);
+  renderShopping();
+}
 
 function toggleManual(id) {
   const week = getWeekKey();
@@ -268,33 +292,32 @@ function openDishDialog(id = null) {
   const dish = id ? dishForId(id) : null;
   $('dialogTitle').textContent = dish ? 'Gericht bearbeiten' : 'Neues Gericht';
   $('dishName').value = dish?.name || '';
-  renderIngredientRows(dish?.ingredients || [{ name: '', quantity: '', unit: '' }]);
+  renderIngredientRows(dish?.ingredients?.length ? dish.ingredients : [{ name: '', quantity: '', unit: '' }]);
   renderDayGrid(dish?.allowedDays || DAYS.map(d => d.key));
   $('dishDialog').showModal();
+  $('dishDialog').querySelector('.dialog-card').scrollTop = 0;
+  // Bewusst kein automatischer Fokus: Auf dem Handy würde sonst sofort die Tastatur aufspringen.
+  document.activeElement?.blur?.();
 }
 
 function closeDishDialog() { $('dishDialog').close(); }
 
 function renderIngredientRows(ingredients) {
   $('ingredientRows').innerHTML = ingredients.map((item, index) => `<div class="ingredient-row">
-    <input data-ing-name value="${escapeAttr(item.name)}" placeholder="Zutat">
-    <input data-ing-qty value="${escapeAttr(item.quantity)}" placeholder="Menge">
-    <input data-ing-unit value="${escapeAttr(item.unit)}" placeholder="Einheit">
+    <input data-ing-name value="${escapeAttr(item.name)}" placeholder="Zutat" autocapitalize="sentences" enterkeyhint="next" aria-label="Zutat">
+    <input data-ing-qty value="${escapeAttr(item.quantity)}" placeholder="Menge" inputmode="decimal" enterkeyhint="next" aria-label="Menge">
+    <input data-ing-unit value="${escapeAttr(item.unit)}" placeholder="Einheit" enterkeyhint="done" aria-label="Einheit">
     <button type="button" class="remove-ingredient" data-remove-ing="${index}" aria-label="Zutat entfernen">×</button>
   </div>`).join('');
-  $('ingredientRows').querySelectorAll('[data-remove-ing]').forEach(btn => btn.addEventListener('click', () => {
-    const rows = readIngredientRows();
-    rows.splice(Number(btn.dataset.removeIng), 1);
-    renderIngredientRows(rows.length ? rows : [{ name: '', quantity: '', unit: '' }]);
-  }));
 }
 
-function readIngredientRows() {
+// keepEmpty: Beim Bearbeiten bleiben leere Zeilen erhalten, erst beim Speichern werden sie aussortiert.
+function readIngredientRows(keepEmpty = false) {
   return [...$('ingredientRows').querySelectorAll('.ingredient-row')].map(row => ({
     name: row.querySelector('[data-ing-name]').value.trim(),
     quantity: row.querySelector('[data-ing-qty]').value.trim(),
     unit: row.querySelector('[data-ing-unit]').value.trim()
-  })).filter(i => i.name);
+  })).filter(i => keepEmpty || i.name);
 }
 
 function renderDayGrid(selected) {
@@ -344,9 +367,13 @@ function escapeHTML(value = '') {
 function escapeAttr(value = '') { return escapeHTML(value); }
 
 function switchTab(tab) {
-  document.querySelectorAll('.nav-item').forEach(btn => btn.classList.toggle('active', btn.dataset.tab === tab));
+  document.querySelectorAll('.nav-item').forEach(btn => {
+    const active = btn.dataset.tab === tab;
+    btn.classList.toggle('active', active);
+    if (active) btn.setAttribute('aria-current', 'page'); else btn.removeAttribute('aria-current');
+  });
   document.querySelectorAll('.tab-panel').forEach(panel => panel.classList.toggle('active', panel.dataset.panel === tab));
-  window.scrollTo({ top: 0, behavior: 'smooth' });
+  window.scrollTo({ top: 0 });
 }
 
 function renderAll() {
@@ -355,14 +382,17 @@ function renderAll() {
   renderShopping();
 }
 
+/* ---------- Events ---------- */
 document.querySelectorAll('.nav-item').forEach(btn => btn.addEventListener('click', () => switchTab(btn.dataset.tab)));
 $('shufflePlan').addEventListener('click', regeneratePlan);
 $('shuffleTop').addEventListener('click', regeneratePlan);
 $('addDishBtn').addEventListener('click', () => openDishDialog());
 $('addIngredientBtn').addEventListener('click', () => {
-  const rows = readIngredientRows();
+  const rows = readIngredientRows(true);
   rows.push({ name: '', quantity: '', unit: '' });
   renderIngredientRows(rows);
+  const names = $('ingredientRows').querySelectorAll('[data-ing-name]');
+  names[names.length - 1]?.focus();
 });
 $('allDaysBtn').addEventListener('click', selectAllDays);
 $('closeDialog').addEventListener('click', closeDishDialog);
@@ -370,5 +400,55 @@ $('cancelDish').addEventListener('click', closeDishDialog);
 $('dishForm').addEventListener('submit', saveDish);
 $('shoppingForm').addEventListener('submit', addManualItem);
 $('dishDialog').addEventListener('click', event => { if (event.target === $('dishDialog')) closeDishDialog(); });
+
+// Event Delegation: Die Listen werden oft neu gezeichnet, so braucht es keine neuen Listener.
+$('dishList').addEventListener('click', event => {
+  const edit = event.target.closest('[data-edit]');
+  if (edit) return openDishDialog(edit.dataset.edit);
+  const del = event.target.closest('[data-delete]');
+  if (del) deleteDish(del.dataset.delete);
+});
+$('ingredientRows').addEventListener('click', event => {
+  const btn = event.target.closest('[data-remove-ing]');
+  if (!btn) return;
+  const rows = readIngredientRows(true);
+  rows.splice(Number(btn.dataset.removeIng), 1);
+  renderIngredientRows(rows.length ? rows : [{ name: '', quantity: '', unit: '' }]);
+});
+$('autoShoppingList').addEventListener('change', event => {
+  const id = event.target.dataset.autoShoppingCheck;
+  if (id !== undefined) toggleAuto(id);
+});
+$('manualShoppingList').addEventListener('change', event => {
+  const id = event.target.dataset.shoppingCheck;
+  if (id !== undefined) toggleManual(id);
+});
+$('manualShoppingList').addEventListener('click', event => {
+  const btn = event.target.closest('[data-shopping-delete]');
+  if (btn) deleteManual(btn.dataset.shoppingDelete);
+});
+
+// Kommt die App aus dem Hintergrund zurück (z. B. am nächsten Tag), Ansicht aktualisieren.
+document.addEventListener('visibilitychange', () => { if (!document.hidden) renderAll(); });
+
+/* ---------- App-Installation (iOS) ---------- */
+const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+const isStandalone = window.navigator.standalone === true || window.matchMedia('(display-mode: standalone)').matches;
+
+if (isIOS && !isStandalone && !load(STORAGE.hintDismissed, false)) {
+  $('installHint').hidden = false;
+}
+$('closeHint').addEventListener('click', () => {
+  $('installHint').hidden = true;
+  save(STORAGE.hintDismissed, true);
+});
+
+// Bittet den Browser, die Daten nicht automatisch zu löschen (wo unterstützt).
+navigator.storage?.persist?.().catch?.(() => {});
+
+// Offline-Fähigkeit
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+}
 
 renderAll();

@@ -3,11 +3,25 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#173e2b">
+  <meta name="theme-color" content="#f4f7f5" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#0e1411" media="(prefers-color-scheme: dark)">
+  <meta name="color-scheme" content="light dark">
+  <meta name="description" content="Plane dein Essen für die ganze Woche und bekomme die Einkaufsliste automatisch.">
   <title>Wochen-Essensplaner</title>
-  <link rel="stylesheet" href="style.css">
+
+  <!-- App-Installation (Android/Chrome) -->
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+
+  <!-- App-Installation (iOS / Zum Home-Bildschirm) -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Essensplan">
+  <meta name="format-detection" content="telephone=no">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <div class="app-shell">
@@ -18,6 +32,12 @@
       </div>
       <button class="icon-btn" id="shuffleTop" aria-label="Woche neu mischen">↻</button>
     </header>
+
+    <aside class="install-hint" id="installHint" hidden>
+      <span class="hint-icon" aria-hidden="true">📲</span>
+      <p>Als App nutzen: In Safari auf <strong>Teilen</strong> tippen und <strong>„Zum Home-Bildschirm“</strong> wählen.</p>
+      <button class="icon-btn" id="closeHint" aria-label="Hinweis schließen">×</button>
+    </aside>
 
     <main>
       <section class="tab-panel active" id="panel-plan" data-panel="plan">
@@ -60,13 +80,13 @@
             <h2>Einkaufsliste</h2>
             <p id="shoppingProgress">0 von 0 erledigt</p>
           </div>
-          <div class="progress-ring" id="progressRing">0%</div>
+          <div class="progress-ring" id="progressRing" aria-hidden="true">0%</div>
         </div>
 
-        <form class="add-shopping" id="shoppingForm">
-          <input id="shoppingName" type="text" placeholder="Eigenen Artikel hinzufügen…" maxlength="80" required>
-          <input id="shoppingQty" class="qty-input" type="text" placeholder="Menge" maxlength="20">
-          <button class="primary-btn" type="submit">＋</button>
+        <form class="add-shopping" id="shoppingForm" autocomplete="off">
+          <input id="shoppingName" type="text" placeholder="Eigenen Artikel hinzufügen…" maxlength="80" enterkeyhint="done" autocapitalize="sentences" required>
+          <input id="shoppingQty" class="qty-input" type="text" placeholder="Menge" maxlength="20" enterkeyhint="done">
+          <button class="primary-btn" type="submit" aria-label="Artikel hinzufügen">＋</button>
         </form>
 
         <div class="section-heading small-heading">
@@ -95,7 +115,7 @@
   </div>
 
   <dialog id="dishDialog" class="dish-dialog">
-    <form method="dialog" id="dishForm" class="dialog-card">
+    <form method="dialog" id="dishForm" class="dialog-card" autocomplete="off">
       <div class="dialog-header">
         <div>
           <span class="hero-label">GERICHT BEARBEITEN</span>
@@ -105,7 +125,7 @@
       </div>
 
       <label class="field-label">Name
-        <input id="dishName" type="text" maxlength="60" placeholder="z. B. Spaghetti Bolognese" required>
+        <input id="dishName" type="text" maxlength="60" placeholder="z. B. Spaghetti Bolognese" autocapitalize="sentences" enterkeyhint="next" required>
       </label>
 
       <div class="field-block">
@@ -133,11 +153,5 @@
   </dialog>
 
   <script src="script.js"></script>
-  <script src="shopping-fix.js"></script>
-  <script>
-    if ("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost")) {
-      window.addEventListener("load", () => navigator.serviceWorker.register("./sw.js").catch(err => console.warn("Offline-Modus konnte nicht aktiviert werden:", err)));
-    }
-  </script>
 </body>
 </html>
