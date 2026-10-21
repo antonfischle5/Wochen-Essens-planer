@@ -1,6 +1,6 @@
 // Service Worker: macht die App offline nutzbar.
 // Bei Änderungen an der App die Versionsnummer erhöhen, dann holen sich alle Geräte die neuen Dateien.
-const CACHE = 'essensplaner-v1';
+const CACHE = 'essensplaner-v2';
 
 const ASSETS = [
   './',

@@ -7,6 +7,12 @@
   <meta name="theme-color" content="#0e1411" media="(prefers-color-scheme: dark)">
   <meta name="color-scheme" content="light dark">
   <meta name="description" content="Plane dein Essen für die ganze Woche und bekomme die Einkaufsliste automatisch.">
+  <script>
+    try {
+      var t = JSON.parse(localStorage.getItem('wochen-essensplaner:theme:v1'));
+      if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t);
+    } catch (e) {}
+  </script>
   <title>Wochen-Essensplaner</title>
 
   <!-- App-Installation (Android/Chrome) -->
@@ -30,7 +36,7 @@
         <p class="eyebrow">Dein smarter Essensplan</p>
         <h1>Wochen-Essensplaner</h1>
       </div>
-      <button class="icon-btn" id="shuffleTop" aria-label="Woche neu mischen">↻</button>
+      <button class="icon-btn" id="settingsBtn" aria-label="Einstellungen">⚙️</button>
     </header>
 
     <aside class="install-hint" id="installHint" hidden>
@@ -150,6 +156,28 @@
         <button type="submit" class="primary-btn">Speichern</button>
       </div>
     </form>
+  </dialog>
+
+  <dialog id="settingsDialog" class="dish-dialog">
+    <div class="dialog-card">
+      <div class="dialog-header">
+        <div>
+          <span class="hero-label">EINSTELLUNGEN</span>
+          <h2>Darstellung</h2>
+        </div>
+        <button type="button" class="icon-btn" id="closeSettings" aria-label="Schließen">×</button>
+      </div>
+
+      <fieldset class="settings-group" style="border:0;margin:0;padding:0;min-width:0">
+        <legend class="field-label" style="padding:0">Farbmodus</legend>
+        <div class="theme-options" id="themeOptions">
+          <label class="theme-option"><input type="radio" name="theme" value="light"><span><b>☀️</b>Hell</span></label>
+          <label class="theme-option"><input type="radio" name="theme" value="dark"><span><b>🌙</b>Dunkel</span></label>
+          <label class="theme-option"><input type="radio" name="theme" value="auto"><span><b>📱</b>Automatisch</span></label>
+        </div>
+        <p class="helper-text">„Automatisch“ folgt der Einstellung deines Handys. Deine Wahl wird gespeichert.</p>
+      </fieldset>
+    </div>
   </dialog>
 
   <script src="script.js"></script>

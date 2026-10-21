@@ -13,7 +13,8 @@ const STORAGE = {
   plans: 'wochen-essensplaner:plans:v1',
   manual: 'wochen-essensplaner:manual-shopping:v1',
   autoChecked: 'wochen-essensplaner:auto-shopping-checked:v1',
-  hintDismissed: 'wochen-essensplaner:install-hint-dismissed:v1'
+  hintDismissed: 'wochen-essensplaner:install-hint-dismissed:v1',
+  theme: 'wochen-essensplaner:theme:v1'
 };
 
 const DEFAULT_DISHES = [
@@ -382,10 +383,45 @@ function renderAll() {
   renderShopping();
 }
 
+/* ---------- Farbmodus ---------- */
+const THEME_COLORS = { light: '#f4f7f5', dark: '#0e1411' };
+document.querySelectorAll('meta[name="theme-color"]').forEach(m => { m.dataset.default = m.content; });
+
+function applyTheme(mode) {
+  const root = document.documentElement;
+  if (mode === 'light' || mode === 'dark') root.setAttribute('data-theme', mode);
+  else root.removeAttribute('data-theme');
+  // Farbe der Statusleiste im Browser anpassen
+  document.querySelectorAll('meta[name="theme-color"]').forEach(m => {
+    m.content = (mode === 'light' || mode === 'dark') ? THEME_COLORS[mode] : m.dataset.default;
+  });
+}
+
+function currentTheme() {
+  const t = load(STORAGE.theme, 'auto');
+  return (t === 'light' || t === 'dark') ? t : 'auto';
+}
+
+function openSettings() {
+  const mode = currentTheme();
+  document.querySelectorAll('#themeOptions input').forEach(input => { input.checked = input.value === mode; });
+  $('settingsDialog').showModal();
+  document.activeElement?.blur?.();
+}
+
+applyTheme(currentTheme());
+
 /* ---------- Events ---------- */
 document.querySelectorAll('.nav-item').forEach(btn => btn.addEventListener('click', () => switchTab(btn.dataset.tab)));
 $('shufflePlan').addEventListener('click', regeneratePlan);
-$('shuffleTop').addEventListener('click', regeneratePlan);
+$('settingsBtn').addEventListener('click', openSettings);
+$('closeSettings').addEventListener('click', () => $('settingsDialog').close());
+$('settingsDialog').addEventListener('click', event => { if (event.target === $('settingsDialog')) $('settingsDialog').close(); });
+$('themeOptions').addEventListener('change', event => {
+  const mode = event.target.value;
+  save(STORAGE.theme, mode);
+  applyTheme(mode);
+});
 $('addDishBtn').addEventListener('click', () => openDishDialog());
 $('addIngredientBtn').addEventListener('click', () => {
   const rows = readIngredientRows(true);
