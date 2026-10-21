@@ -1,0 +1,12 @@
+{
+  "name": "Wochen-Essensplaner",
+  "short_name": "Essensplan",
+  "description": "Plane dein Essen für die ganze Woche und erstelle eine Einkaufsliste.",
+  "lang": "de",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f4f7f5",
+  "theme_color": "#173e2b"
+}
