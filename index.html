@@ -6,6 +6,7 @@
   <meta name="theme-color" content="#111827">
   <title>Wochen-Essensplaner</title>
   <link rel="stylesheet" href="style.css">
+  <link rel="manifest" href="manifest.webmanifest">
 </head>
 <body>
   <div class="app-shell">
@@ -132,5 +133,10 @@
 
   <script src="script.js"></script>
   <script src="shopping-fix.js"></script>
+  <script>
+    if ("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost")) {
+      window.addEventListener("load", () => navigator.serviceWorker.register("./sw.js").catch(err => console.warn("Offline-Modus konnte nicht aktiviert werden:", err)));
+    }
+  </script>
 </body>
 </html>
